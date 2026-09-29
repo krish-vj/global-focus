@@ -103,27 +103,52 @@ def get_jev_client(api_key):
     return _jev_client
 
 def classify_title(title, goal, api_key):
-    """Ask Jev if a window title is relevant to the goal. Returns True if ALLOWED."""
-    from typesafe_sdk import Noul
-    prompt = (
-        f"The user's study goal is: '{goal}'. "
-        f"They are currently viewing a window titled: '{title}'. "
-        f"System windows (File Explorer, Settings, Task Manager, Notepad, Terminal) "
-        f"and empty/navigation pages (New Tab, browser start page) are always relevant. "
-        f"Is this window title relevant to or allowed for the study goal?"
-    )
+    """Ask Jev to classify a window title into one of three states.
+    
+    Returns True (allow) for 'on_task' and 'transitioning'.
+    Returns False (block) only for 'distracted'.
+    """
+    from typesafe_sdk import Choice
     try:
         client = get_jev_client(api_key)
         r = client.system_one(
             state={"window_title": title, "study_goal": goal},
             questions={
-                "allowed": Noul(instructions=prompt),
+                "activity": Choice(
+                    instructions=(
+                        f"The user's study goal is: '{goal}'. "
+                        f"Classify what the window titled '{title}' represents."
+                    ),
+                    criteria={
+                        "on_task": (
+                            "The window title clearly shows content that is directly "
+                            "related to the study goal — e.g. a relevant video, article, "
+                            "documentation page, IDE, code editor, or study tool."
+                        ),
+                        "transitioning": (
+                            "The window is a neutral navigation point with no specific "
+                            "content yet — e.g. a browser homepage, new tab, empty search "
+                            "bar, YouTube homepage, Google homepage, app loading screen, "
+                            "or any system/utility window (File Explorer, Settings, "
+                            "Task Manager, Terminal, Notepad). The user is likely about "
+                            "to navigate to something useful."
+                        ),
+                        "distracted": (
+                            "The window title clearly shows content unrelated to the "
+                            "study goal — e.g. an entertainment video, social media feed, "
+                            "news article, game, or any other obvious distraction."
+                        ),
+                    },
+                ),
             },
         )
-        noul_val = r.answers["allowed"].noul
-        result = "YES" if noul_val >= 0.5 else "NO"
-        ai_log(f"[{result}] (noul={noul_val:.2f}) {title}")
-        return noul_val >= 0.5
+        ans = r.answers["activity"]
+        choice = ans.choice          # "on_task" | "transitioning" | "distracted"
+        conf  = ans.confidence
+        allowed = choice != "distracted"
+        tag = {"on_task": "ON_TASK", "transitioning": "TRANSIT", "distracted": "NO"}[choice]
+        ai_log(f"[{tag}] (conf={conf:.2f}) {title}")
+        return allowed
     except Exception as e:
         ai_log(f"[ERROR] {e} — {title}")
         return True  # Fail open — never block on API errors
@@ -142,6 +167,7 @@ class AiClassifier(threading.Thread):
         self.cache_lock = cache_lock
         self.queue = queue.Queue()
         self._stop_event = threading.Event()
+        self.api_call_count = 0   # number of Jev API calls made
     
     def submit(self, title):
         """Add a title to the classification queue (non-blocking)."""
@@ -163,9 +189,11 @@ class AiClassifier(threading.Thread):
                     continue
             
             allowed = classify_title(title, self.goal, self.api_key)
+            self.api_call_count += 1
             
             with self.cache_lock:
                 self.cache[title] = allowed
+
 
 # ─── Window Monitor Thread ───────────────────────────────────────────────────
 
@@ -242,7 +270,7 @@ class WindowMonitor(threading.Thread):
 
 # ─── Analytics ───────────────────────────────────────────────────────────────
 
-def generate_analytics_html(tracker, goal):
+def generate_analytics_html(tracker, goal, jev_calls):
     """Generate an HTML analytics report showing the activity log."""
     sorted_items = sorted(tracker.items(), key=lambda x: x[1], reverse=True)[:25]
     max_val = max((v for _, v in sorted_items), default=1)
@@ -289,6 +317,7 @@ h4{{color:#888;margin:0 0 16px;border-bottom:1px solid #333;padding-bottom:8px}}
 <div class='stats'>
   <div class='stat-box'><div class='val'>{total_mins}</div><div class='lbl-s'>Total Minutes</div></div>
   <div class='stat-box'><div class='val'>{len(sorted_items)}</div><div class='lbl-s'>Windows Visited</div></div>
+  <div class='stat-box'><div class='val'>{jev_calls}</div><div class='lbl-s'>Jev API Calls</div></div>
 </div>
 <h4>Time Breakdown</h4>
 {rows}
@@ -298,6 +327,7 @@ h4{{color:#888;margin:0 0 16px;border-bottom:1px solid #333;padding-bottom:8px}}
     with open(filename, "w", encoding="utf-8") as f:
         f.write(html)
     webbrowser.open(str(filename))
+
 
 
 # ─── Overlay Widget ──────────────────────────────────────────────────────────
@@ -575,9 +605,10 @@ class StudyGuardApp:
             classifier.join(timeout=3)
             
             self._log(f"Session complete! Blocked {monitor.blocked_count} distractions.")
+            self._log(f"Jev API calls made: {classifier.api_call_count}")
             
             # Generate analytics
-            generate_analytics_html(tracker, goal)
+            generate_analytics_html(tracker, goal, classifier.api_call_count)
         
         threading.Thread(target=watch_session, daemon=True).start()
 
