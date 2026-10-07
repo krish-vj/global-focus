@@ -27,7 +27,7 @@ AI-powered focus app that keeps you on-task across any browser or Windows applic
 - An [OpenRouter API Key](https://openrouter.ai/settings/keys)
 
 ### 2. Install Dependencies
-`ash
+`bash
 pip install -r requirements.txt
 `
 
