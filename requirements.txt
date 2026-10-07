@@ -1,0 +1,6 @@
+﻿flask>=3.0.0
+pystray>=0.19.5
+pillow>=10.0.0
+pywin32>=306
+typesafe-sdk
+requests

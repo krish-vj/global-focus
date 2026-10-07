@@ -1,5 +1,18 @@
-*.json
+# Python
+__pycache__/
+*.py[cod]
+*.class
+*.env
+.venv/
+venv/
+
+# App Data & Logs
+*.db
+*.db-wal
+*.db-shm
 *.html
-__pychache__
-*.pyc
+!web/*.html
+!web/**/*.html
 ai_log.txt
+config.json
+*.log

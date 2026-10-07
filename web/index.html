@@ -1,0 +1,409 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Study Guard — Focus & Analytics</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo-icon">🛡️</div>
+        <div class="logo-text">
+          <h2>Study Guard</h2>
+          <span>AI-Powered Focus</span>
+        </div>
+      </div>
+      
+      <nav class="nav-menu">
+        <button class="nav-item active" data-tab="dashboard">
+          <span class="icon">🎯</span> Session
+        </button>
+        <button class="nav-item" data-tab="analytics">
+          <span class="icon">📊</span> Analytics
+        </button>
+        <button class="nav-item" data-tab="categories">
+          <span class="icon">🏷️</span> Categories
+        </button>
+        <button class="nav-item" data-tab="settings">
+          <span class="icon">⚙️</span> Settings
+        </button>
+      </nav>
+
+      <div class="status-widget" id="sidebar-status-widget">
+        <div class="status-indicator idle" id="status-dot"></div>
+        <div class="status-info">
+          <span class="status-label" id="status-label">Ready</span>
+          <span class="timer-preview" id="timer-preview">00:00</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      
+      <!-- TAB 1: SESSION / DASHBOARD -->
+      <section id="tab-dashboard" class="tab-pane active">
+        <header class="content-header">
+          <div>
+            <h1>Focus Session</h1>
+            <p class="subtitle">Select your study category or goal and start guarding your focus.</p>
+          </div>
+          <div class="header-badges">
+            <span class="badge mode-badge" id="active-mode-badge">Observer / Block</span>
+          </div>
+        </header>
+
+        <!-- Active Session Card (Hidden when Idle) -->
+        <div class="card active-session-card hidden" id="active-session-card">
+          <div class="session-timer-display">
+            <div class="timer-circle">
+              <span class="timer-val" id="active-timer">25:00</span>
+              <span class="phase-lbl" id="active-phase-lbl">FOCUS</span>
+            </div>
+          </div>
+          <div class="active-session-meta">
+            <h2 id="active-goal-text">Studying DBMS</h2>
+            <div class="meta-row">
+              <span class="meta-item">Category: <b id="active-category-text">DBMS</b></span>
+              <span class="meta-item">Mode: <b id="active-mode-text">Block</b></span>
+              <span class="meta-item">Distractions Blocked: <b id="active-blocks-count">0</b></span>
+              <span class="meta-item">Jev AI Calls: <b id="active-jev-count">0</b></span>
+            </div>
+            <button class="btn btn-danger mt-3" id="btn-stop-session">⏹ Stop Session</button>
+          </div>
+        </div>
+
+        <!-- Session Setup Form (Hidden when Running) -->
+        <div class="card launcher-card" id="launcher-card">
+          <h3>Start New Session</h3>
+          <div class="form-grid">
+            <div class="form-group span-2">
+              <label>Select Category / Goal</label>
+              <div class="category-chips" id="category-chips">
+                <!-- Dynamically loaded -->
+              </div>
+            </div>
+
+            <div class="form-group span-2">
+              <label for="custom-goal">Specific Task / Notes (Optional)</label>
+              <input type="text" id="custom-goal" placeholder="e.g. Chapter 4 B-Trees and Indexing" />
+            </div>
+
+            <div class="form-group">
+              <label for="session-duration">Duration (Minutes)</label>
+              <input type="number" id="session-duration" value="30" min="1" max="1440" />
+            </div>
+
+            <div class="form-group">
+              <label>Guarding Mode</label>
+              <div class="toggle-group">
+                <button type="button" class="btn-toggle active" data-mode="block" id="btn-mode-block">
+                  🛑 Block Mode
+                </button>
+                <button type="button" class="btn-toggle" data-mode="observe" id="btn-mode-observe">
+                  👁️ Observer Only
+                </button>
+              </div>
+              <small class="helper-text" id="mode-helper-desc">
+                Redirects distracting browser tabs to motivational quote & minimizes other apps.
+              </small>
+            </div>
+
+            <div class="form-group span-2 pomodoro-opts">
+              <label class="checkbox-container">
+                <input type="checkbox" id="pomodoro-enable" />
+                <span class="checkmark"></span>
+                Enable Pomodoro Intervals
+              </label>
+              <div class="pomodoro-inputs hidden" id="pomodoro-inputs">
+                <div class="pomo-col">
+                  <label>Study (mins)</label>
+                  <input type="number" id="pomo-study" value="25" min="1" max="120" />
+                </div>
+                <div class="pomo-col">
+                  <label>Break (mins)</label>
+                  <input type="number" id="pomo-break" value="5" min="1" max="60" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="actions mt-3">
+            <button class="btn btn-primary btn-large" id="btn-start-session">🚀 Start Focus Session</button>
+          </div>
+        </div>
+
+        <!-- Real-Time Activity Feed -->
+        <div class="card mt-4">
+          <div class="card-header-flex">
+            <h3>Live Activity Feed</h3>
+            <span class="pulse-indicator"></span>
+          </div>
+          <div class="live-feed-table-wrap">
+            <table class="data-table" id="live-feed-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Window Title</th>
+                  <th>Process</th>
+                  <th>Classified Category</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="live-feed-body">
+                <tr><td colspan="6" class="text-center text-muted">Awaiting session activity...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: ANALYTICS -->
+      <section id="tab-analytics" class="tab-pane">
+        <header class="content-header">
+          <div>
+            <h1>Long-Term Analytics</h1>
+            <p class="subtitle">Tamper-evident cumulative metrics & history stored in SQLite.</p>
+          </div>
+          <div class="filter-controls">
+            <select id="analytics-timeframe">
+              <option value="7">Last 7 Days</option>
+              <option value="30" selected>Last 30 Days</option>
+              <option value="90">Last 90 Days</option>
+            </select>
+          </div>
+        </header>
+
+        <!-- Metric Stat Cards -->
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-label">Total Study Time</div>
+            <div class="stat-value" id="stat-total-mins">0 min</div>
+            <div class="stat-sub">Across all sessions</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Sessions Completed</div>
+            <div class="stat-value" id="stat-sessions-count">0</div>
+            <div class="stat-sub">Tracked in database</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Distractions Neutralized</div>
+            <div class="stat-value text-accent" id="stat-total-blocks">0</div>
+            <div class="stat-sub">Blocked or Redirected</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Top Category</div>
+            <div class="stat-value text-info" id="stat-top-category">—</div>
+            <div class="stat-sub">Most studied topic</div>
+          </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="charts-grid mt-4">
+          <div class="card chart-card">
+            <h3>Time per Category</h3>
+            <div class="chart-wrap">
+              <canvas id="categoryDoughnutChart"></canvas>
+            </div>
+          </div>
+          <div class="card chart-card">
+            <h3>Daily Activity Trend</h3>
+            <div class="chart-wrap">
+              <canvas id="dailyBarChart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Past Sessions Log -->
+        <div class="card mt-4">
+          <h3>Session History</h3>
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Date & Time</th>
+                  <th>Category</th>
+                  <th>Goal</th>
+                  <th>Mode</th>
+                  <th>Duration</th>
+                  <th>Blocks</th>
+                </tr>
+              </thead>
+              <tbody id="session-history-body">
+                <tr><td colspan="6" class="text-center text-muted">No sessions found.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: CATEGORIES -->
+      <section id="tab-categories" class="tab-pane">
+        <header class="content-header">
+          <div>
+            <h1>Categories & Classes</h1>
+            <p class="subtitle">Predefine topics once. Jev AI classifies foreground content directly into them.</p>
+          </div>
+          <button class="btn btn-primary" id="btn-open-category-modal">+ New Category</button>
+        </header>
+
+        <div class="card">
+          <div class="table-wrap">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th>Color</th>
+                  <th>Category Name</th>
+                  <th>Jev Classifier Criteria / Description</th>
+                  <th>Type</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="categories-table-body">
+                <!-- Dynamically loaded -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: SETTINGS & GUARDIAN -->
+      <section id="tab-settings" class="tab-pane">
+        <header class="content-header">
+          <div>
+            <h1>Settings & Preferences</h1>
+            <p class="subtitle">Manage API keys, Guardian reports (optional), and verify database tamper status.</p>
+          </div>
+        </header>
+
+        <!-- Integrity Check Card -->
+        <div class="card integrity-card mb-4">
+          <div class="integrity-header">
+            <div>
+              <h3>Database Integrity & Anti-Tamper Chain</h3>
+              <p class="text-muted">HMAC-SHA256 signature chain validates that SQLite records have not been manually altered.</p>
+            </div>
+            <button class="btn btn-secondary" id="btn-verify-integrity">🔍 Verify Integrity Now</button>
+          </div>
+          <div id="integrity-result-box" class="integrity-badge-box">
+            Status: <span class="badge" id="integrity-badge">Unchecked</span>
+            <span id="integrity-details" class="text-muted ml-2"></span>
+          </div>
+        </div>
+
+        <!-- OpenRouter API Key -->
+        <div class="card mb-4">
+          <h3>OpenRouter / Jev API Configuration</h3>
+          <div class="form-group mt-2">
+            <label for="setting-api-key">OpenRouter API Key</label>
+            <input type="password" id="setting-api-key" placeholder="sk-or-v1-..." />
+            <small class="helper-text">Used to connect to TypeSafe Jev model via OpenRouter Decisions API.</small>
+          </div>
+          <button class="btn btn-primary mt-2" id="btn-save-api-key">Save API Key</button>
+        </div>
+
+        <!-- Optional Guardian Reporting Card -->
+        <div class="card">
+          <div class="card-header-flex">
+            <div>
+              <h3>Guardian / Parent / Teacher Reporting (Optional)</h3>
+              <p class="text-muted">Sends formatted progress reports and tamper verification status via email.</p>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="guardian-enable-toggle" />
+              <span class="slider round"></span>
+            </label>
+          </div>
+
+          <div id="guardian-settings-form" class="mt-3 form-grid hidden">
+            <div class="form-group">
+              <label for="guardian-email">Guardian Recipient Email</label>
+              <input type="email" id="guardian-email" placeholder="parent@example.com" />
+            </div>
+
+            <div class="form-group">
+              <label for="guardian-student-name">Student Name</label>
+              <input type="text" id="guardian-student-name" placeholder="Krish" />
+            </div>
+
+            <div class="form-group">
+              <label for="guardian-smtp-host">SMTP Host</label>
+              <input type="text" id="guardian-smtp-host" value="smtp.gmail.com" />
+            </div>
+
+            <div class="form-group">
+              <label for="guardian-smtp-port">SMTP Port</label>
+              <input type="number" id="guardian-smtp-port" value="587" />
+            </div>
+
+            <div class="form-group">
+              <label for="guardian-smtp-user">Sender Email (SMTP User)</label>
+              <input type="email" id="guardian-smtp-user" placeholder="student@gmail.com" />
+            </div>
+
+            <div class="form-group">
+              <label for="guardian-smtp-pass">SMTP App Password</label>
+              <input type="password" id="guardian-smtp-pass" placeholder="Generated Gmail App Password" />
+            </div>
+
+            <div class="form-group span-2">
+              <div class="actions">
+                <button class="btn btn-primary" id="btn-save-guardian">Save Guardian Settings</button>
+                <button class="btn btn-secondary ml-2" id="btn-send-test-report">📧 Send Report Now (Last 7 Days)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Category Modal -->
+  <div class="modal hidden" id="category-modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="modal-cat-title">Create Category</h3>
+        <button class="close-btn" id="btn-close-cat-modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="modal-cat-id" />
+        <div class="form-group">
+          <label for="modal-cat-name">Category Name</label>
+          <input type="text" id="modal-cat-name" placeholder="e.g. DBMS, OS, CAO, Entertainment" required />
+        </div>
+        <div class="form-group">
+          <label for="modal-cat-desc">Jev Classification Criteria</label>
+          <textarea id="modal-cat-desc" rows="3" placeholder="Describe the content belonging to this category (e.g. Database systems, SQL queries, relational algebra, indexing lectures)."></textarea>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="modal-cat-color">Color</label>
+            <input type="color" id="modal-cat-color" value="#6c63ff" />
+          </div>
+          <div class="form-group">
+            <label for="modal-cat-productive">Productive Category?</label>
+            <select id="modal-cat-productive">
+              <option value="1">Yes (Study / Productive)</option>
+              <option value="0">No (Entertainment / Distraction)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-cat-modal">Cancel</button>
+        <button class="btn btn-primary" id="btn-save-cat-modal">Save Category</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

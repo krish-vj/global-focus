@@ -1,7 +1,7 @@
 @echo off
-title Study Guard
-echo Starting Study Guard...
-python "%~dp0study_guard.py"
+title Study Guard v2
+echo Starting Study Guard v2...
+python "%~dp0app.py"
 if %errorlevel% neq 0 (
     echo.
     echo ============================================
